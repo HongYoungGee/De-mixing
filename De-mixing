@@ -221,7 +221,7 @@ double rounding(double value, int num)
 
 void in_out_combination(transaction input, int number_of_withdraw, vector<transaction> out, vector <vector<int>> &number_of_case)
 {
-	vector<int> com,allowed_output;
+	vector<int> com, allowed_output;
 	double amount = rounding((input.amount*0.975), 8);
 
 	for (int i = input.range_start; i <= input.range_end; i++)
@@ -234,9 +234,9 @@ void in_out_combination(transaction input, int number_of_withdraw, vector<transa
 			com.push_back(i);
 		com[com.size() - 1]--;  // For while statements
 
-		while (is_next_combination(com, number_of_withdraw, allowed_output.size()-1))
+		while (is_next_combination(com, number_of_withdraw, allowed_output.size() - 1))
 		{
-			next_combination(com, number_of_withdraw, allowed_output.size()-1);
+			next_combination(com, number_of_withdraw, allowed_output.size() - 1);
 
 			vector<int> temp;
 			for (int i = 0; i < number_of_withdraw; i++)
@@ -315,7 +315,9 @@ int main()
 	std::setprecision(10);
 	cout.precision(10);
 
-	for (int i = 0; i < 10; i++)
+	int number_of_inputfile = 10;
+
+	for (int i = 0; i < number_of_inputfile; i++)
 	{
 		cout << i << "******************************************************" << endl;
 		clock_t begin = clock();
@@ -334,8 +336,8 @@ int main()
 
 	//read_txt("result_16.txt", in, out); //step 1
 	//de_mixing(in, out); //step 2
-	
+
 	//print_vector(in);
 	//print_vector(out);
-	printf("time spent : %f\n", (double)(clock() - begin) / CLOCKS_PER_SEC);
+	printf("average time spent : %f\n", (double)(clock() - begin) / CLOCKS_PER_SEC/ number_of_inputfile);
 }

@@ -1,0 +1,341 @@
+/*
+1. Read the file, and classify the input output
+2. de-Mixing algorithm
+2-1 Calculate the output range corresponding to input.
+2-2 Output list extraction that is smaller than Bitcoin value in input, and then combination operation.
+2-3a If the number of cases is 1, remove the output that matches the input, and repeat the algorithm from 2-1 again.
+2-3b Prints the number of output cases corresponding to each input if there is no case whose input corresponds to one.
+*/
+
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <time.h>
+#include <vector>
+#include <iomanip>
+using namespace std;
+
+// Helix parameter
+#define Helix_maximum_delay 1440 //Expressed in minutes
+#define Helix_maximum_withdraw 5
+#define Helix_fee 2.5
+
+//address index
+#define address_index 4
+
+struct transaction
+{
+	string type;
+	string address;
+	double amount;
+	int yyyy, mm, dd, hour, minute;
+	int range_start, range_end; //Output in the time range.
+};
+
+void print_vector(vector<transaction> vec)
+{
+	cout << vec.size() << endl;
+	for (int i = 0; i < vec.size(); i++)
+	{
+		cout << vec[i].type << " " << vec[i].address << " " <<
+			vec[i].yyyy << "-" << vec[i].mm << "-" << vec[i].dd << " " <<
+			vec[i].hour << ":" << vec[i].minute << " " << vec[i].amount << " range" << vec[i].range_start << "~" << vec[i].range_end << endl;
+	}
+}
+
+void print_transaction(transaction input)
+{
+	cout << input.type << " " << input.address << " " <<
+		input.yyyy << "-" << input.mm << "-" << input.dd << " " <<
+		input.hour << ":" << input.minute << " " << input.amount << endl;
+}
+
+void write_result(transaction input, vector<int> com, vector<transaction> out)
+{
+	ofstream output("output.txt", ios::app);
+
+	output << input.type << " " << input.address << " " <<
+		input.yyyy << "-" << input.mm << "-" << input.dd << " " <<
+		input.hour << ":" << input.minute << " " << input.amount << endl;
+
+	for (int i = 0; i < com.size(); i++)
+	{
+		output << out[com[i]].type << " " << out[com[i]].address << " " <<
+			out[com[i]].yyyy << "-" << out[com[i]].mm << "-" << out[com[i]].dd << " " <<
+			out[com[i]].hour << ":" << out[com[i]].minute << " " << out[com[i]].amount << endl;
+	}
+
+	output << endl;
+	output.close();
+}
+
+// 1. Read the file, and classify the input output
+
+void read_txt(string Filename, vector<transaction> &in, vector<transaction> &out)
+{
+	ifstream in_result(Filename);
+	if (in_result.is_open()) {
+		cout << "File lead success." << endl;
+	}
+	else
+	{
+		cout << "File not found." << endl;
+	}
+
+	while (!in_result.eof())
+	{
+		transaction a;
+
+		in_result >> a.type;
+		in_result >> a.address;
+		in_result >> a.yyyy;
+		in_result >> a.mm;
+		in_result >> a.dd;
+		in_result >> a.hour;
+		in_result >> a.minute;
+		in_result >> a.amount;
+
+		if (a.type == "input") in.push_back(a);
+		else if (a.type == "output") out.push_back(a);
+	}
+}
+
+// 2-1 Calculate the output range corresponding to input.
+
+void set_time(transaction input, int delay, transaction &output)
+{
+	int month[12] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+
+	output.minute = (input.minute + delay) % 60;
+	output.hour = (input.hour + (input.minute + delay) / 60) % 24;
+
+	output.dd = input.dd + (input.hour + (input.minute + delay) / 60) / 24;
+
+	output.mm = input.mm;
+	output.yyyy = input.yyyy;
+}
+
+bool compare_transaction(transaction a, transaction b) //true if a> b after time comparison. (a가 크면)
+{
+	if (a.yyyy > b.yyyy) true;
+	else if (a.yyyy == b.yyyy)
+		if (a.mm > b.mm) return true;
+		else if (a.mm == b.mm)
+			if (a.dd > b.dd) return true;
+			else if (a.dd == b.dd)
+				if (a.hour > b.hour) return true;
+				else if (a.hour == b.hour)
+					if (a.minute > b.minute) return true;
+
+	return false;
+}
+
+int binary_search_max_range(transaction max_time, vector<transaction> out)
+{
+	int start = 0, end = out.size() - 1, mid;
+
+	while (start != end)
+	{
+		mid = (start + end + 1) / 2;
+
+		if (compare_transaction(out[mid], max_time))
+			end = mid - 1;
+		else
+			start = mid;
+	}
+
+	return end;
+}
+
+int binary_search_min_range(transaction min_time, vector<transaction> out)
+{
+	int start = 0, end = out.size() - 1, mid;
+
+	while (start != end)
+	{
+		mid = (start + end) / 2;
+
+		if (compare_transaction(min_time, out[mid])) //The smallest value for which this function returns false.
+			start = mid + 1;
+		else
+			end = mid;
+	}
+
+	return start;
+}
+
+void cal_range(vector<transaction> &in, vector<transaction> out)
+{
+	for (int i = 0; i < in.size(); i++)
+	{
+		//set maximum range
+		transaction max_time;
+		set_time(in[i], Helix_maximum_delay, max_time);
+
+		//set range
+		in[i].range_start = binary_search_min_range(in[i], out);
+		in[i].range_end = binary_search_max_range(max_time, out);
+
+	}
+}
+
+// 2-2 Output list extraction that is smaller than Bitcoin value in input, and then combination operation.
+
+double return_sum(vector<int> com, int number_of_withdraw, vector<transaction> out)
+{
+	double sum = 0;
+	for (int i = 0; i < number_of_withdraw; i++)
+		sum += out[com[i]].amount;
+
+	return sum;
+}
+
+void next_combination(vector<int> &com, int number_of_withdraw, int range_end)
+{
+	for (int i = 0; i < number_of_withdraw; i++)
+		if (com[number_of_withdraw - 1 - i] != range_end - i)
+		{
+			com[number_of_withdraw - 1 - i]++;
+			for (int j = 0; j < i; j++)
+				com[number_of_withdraw - i + j] = com[number_of_withdraw - 1 - i + j] + 1;
+
+			break;
+		}
+}
+
+bool is_next_combination(vector<int> com, int number_of_withdraw, int range_end)
+{
+	for (int i = 0; i < number_of_withdraw; i++)
+		if (com[number_of_withdraw - 1 - i] != range_end - i)
+			return true;
+
+	return false;
+}
+
+double rounding(double value, int num)
+{
+	unsigned long long a = value*pow(10, num);
+
+	return a / pow(10, num);
+}
+
+void in_out_combination(transaction input, int number_of_withdraw, vector<transaction> out, vector <vector<int>> &number_of_case)
+{
+	vector<int> com,allowed_output;
+	double amount = rounding((input.amount*0.975), 8);
+
+	for (int i = input.range_start; i <= input.range_end; i++)
+		if (input.amount >= out[i].amount)
+			allowed_output.push_back(i);
+
+	if (allowed_output.size() >= number_of_withdraw) // If it is less than the number of output, it ends.
+	{
+		for (int i = 0; i < number_of_withdraw; i++)
+			com.push_back(i);
+		com[com.size() - 1]--;  // For while statements
+
+		while (is_next_combination(com, number_of_withdraw, allowed_output.size()-1))
+		{
+			next_combination(com, number_of_withdraw, allowed_output.size()-1);
+
+			vector<int> temp;
+			for (int i = 0; i < number_of_withdraw; i++)
+				temp.push_back(allowed_output[com[i]]);
+
+			if (abs(amount - return_sum(temp, number_of_withdraw, out)) < 1.0e-10) //Matching
+				number_of_case.push_back(temp);
+
+		}
+	}
+}
+
+// 2. de-Mixing algorithm
+
+void de_mixing(vector<transaction> in, vector<transaction> out)
+{
+	while (!in.empty())
+	{
+		vector <vector <vector<int>>> arr; // input, case , list
+		int flag = 1;
+
+		cal_range(in, out); // step 2-1
+
+		for (int i = 0; i < in.size(); i++)
+		{
+			vector <vector<int>> number_of_case;
+
+			for (int number_of_withdraw = 1; (number_of_withdraw <= Helix_maximum_withdraw) && (number_of_withdraw <= out.size()); number_of_withdraw++) //step 2-2
+				in_out_combination(in[i], number_of_withdraw, out, number_of_case);
+
+			if (number_of_case.size() == 1) // step 2-3a If the number of cases is 1, remove the output that matches the input, and repeat the algorithm from 2-1 again.
+			{
+				write_result(in[i], number_of_case[0], out); // Write result
+
+				print_transaction(in[i]);
+				for (int j = 0; j < number_of_case[0].size(); j++)  // print transaction
+					print_transaction(out[number_of_case[0][j]]);
+				cout << endl;
+
+				in.erase(in.begin() + i);         //Eliminate matched I / O
+				for (int j = 0; j < number_of_case[0].size(); j++)
+					out.erase(out.begin() + (number_of_case[0][j] - j));
+
+				flag = 0;
+				break;
+			}
+
+			arr.push_back(number_of_case);
+		}
+
+		if (flag == 1) // step 2-3b Prints the number of output cases corresponding to each input if there is no case whose input corresponds to one.
+		{
+			cout << "===========================================================" << endl << "각 입력에 대응되는 case 출력" << endl;
+			for (int i = 0; i < arr.size(); i++)
+			{
+				print_transaction(in[i]);
+				for (int j = 0; j < arr[i].size(); j++)  //print transaction
+				{
+					for (int k = 0; k < arr[i][j].size(); k++)
+						print_transaction(out[arr[i][j][k]]);
+					cout << endl;
+				}
+				cout << endl;
+				cout << "===========================================================" << endl;
+			}
+
+			break;
+		}
+	}
+}
+
+int main()
+{
+	clock_t begin = clock();
+	//vector<transaction> in, out;
+	std::setprecision(10);
+	cout.precision(10);
+
+	for (int i = 0; i < 10; i++)
+	{
+		cout << i << "******************************************************" << endl;
+		clock_t begin = clock();
+
+		vector<transaction> in, out;
+		string filename = "result_";
+		filename.push_back(i + '0');
+
+		read_txt(filename + ".txt", in, out);
+		de_mixing(in, out); //step 2
+
+		printf("time spent : %f\n", (double)(clock() - begin) / CLOCKS_PER_SEC);
+
+		cout << "******************************************************" << endl;
+	}
+
+	//read_txt("result_16.txt", in, out); //step 1
+	//de_mixing(in, out); //step 2
+	
+	//print_vector(in);
+	//print_vector(out);
+	printf("time spent : %f\n", (double)(clock() - begin) / CLOCKS_PER_SEC);
+}

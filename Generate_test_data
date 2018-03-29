@@ -1,0 +1,399 @@
+/*
+1. Read Chainalysis data and store it in transaction structure
+2. Generate random output transaction data per input transaction
+3. Sort
+4. Create output file
+
+*/
+
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <time.h>
+#include <vector>
+#include <iomanip>
+using namespace std;
+
+// Helix parameter
+#define Helix_maximum_delay 1440 //Expressed in minutes
+#define Helix_maximum_withdraw 5
+#define Helix_fee 2.5
+
+//address index
+#define address_index 4
+
+
+struct transaction
+{
+	string type;
+	string date;
+	string time;
+	string address;
+	double amount;
+	int yyyy, mm, dd, hour, minute;
+};
+
+void print_vector(vector<transaction> vec)
+{
+	cout << vec.size() << endl;
+	for (int i = 0; i < vec.size(); i++)
+	{
+		cout << vec[i].type << " " << vec[i].address << " " <<
+			vec[i].yyyy << "-" << vec[i].mm << "-" << vec[i].dd << " " <<
+			vec[i].hour << ":" << vec[i].minute << " " << vec[i].amount << endl;
+	}
+}
+
+// 1. Read Chainalysis data and store it in transaction structure
+
+char Base58Check(int value)
+{
+	if (value < 9) return value + 49;
+	else if (value < 17) return value + 56;
+	else if (value < 22) return value + 57;
+	else if (value < 33) return value + 58;
+	else if (value < 44) return value + 64;
+	else if (value < 58) return value + 65;
+
+	return 47; //NULL
+}
+int length_of_int(int num)
+{
+	int count = 0;
+
+	while (num > 0)
+	{
+		count++;
+		num /= 10;
+	}
+
+	return count;
+}
+string generate_address(int num)
+{
+	string add = "1";
+	for (int i = 0; i < 34 - address_index - 1; i++) 
+		add.push_back(Base58Check(rand() % 58));
+
+	for (int i = 0; i < address_index - length_of_int(num); i++)
+		add.push_back('0');
+
+	string str = to_string(num);
+	if(num != 0)
+		add.append(str);
+
+	return add;
+}
+
+int string_to_int(string s, int start, int end)
+{
+	int sum = 0;
+	
+	for (int i = start; i <= end; i++)
+		sum += (s[i] - '0')*pow(10, end-i);
+	
+	return sum;
+}
+
+void read_txt(string Filename, vector<transaction> &vec) //generate single result
+{
+	ifstream read_txt(Filename);
+	if (read_txt.is_open()) {
+		cout << "File lead success." << endl;
+	}
+	else
+	{
+		cout << "File not found." << endl;
+	}
+
+	for (int i = 0; !read_txt.eof(); i++)
+	{
+		transaction a;
+
+		string s;
+		double d;
+
+		read_txt >> s;
+		a.date = s;
+		a.yyyy = string_to_int(s, 0, 3);
+		a.mm = string_to_int(s, 5, 6);
+		a.dd = string_to_int(s, 8, 9);
+
+		read_txt >> s;
+		a.time = s;
+		if (s.length() == 4)
+		{
+			a.hour = string_to_int(s, 0, 0);
+			a.minute = string_to_int(s, 2, 3);
+		}
+		else if (s.length() == 5)
+		{
+			a.hour = string_to_int(s, 0, 1);
+			a.minute = string_to_int(s, 3, 4);
+		}
+		read_txt >> d;
+		a.amount = d;
+		
+		a.type = "input";
+		a.address = generate_address(i);
+
+		vec.push_back(a);
+	}
+}
+
+void read_txt(string Filename, vector<vector<transaction>> &in, int num , int number_of_transaction) //generate multiple result
+{
+	ifstream read_txt(Filename);
+	if (read_txt.is_open()) {
+		cout << "File lead success." << endl;
+	}
+	else
+	{
+		cout << "File not found." << endl;
+	}
+
+	for (int number_of_result = 0; number_of_result < num; number_of_result++)
+	{
+		vector<transaction> vec;
+		for (int i = 0; i<number_of_transaction; i++)
+		{
+			transaction a;
+
+			string s;
+			double d;
+
+			read_txt >> s;
+			a.date = s;
+			a.yyyy = string_to_int(s, 0, 3);
+			a.mm = string_to_int(s, 5, 6);
+			a.dd = string_to_int(s, 8, 9);
+
+			read_txt >> s;
+			a.time = s;
+			if (s.length() == 4)
+			{
+				a.hour = string_to_int(s, 0, 0);
+				a.minute = string_to_int(s, 2, 3);
+			}
+			else if (s.length() == 5)
+			{
+				a.hour = string_to_int(s, 0, 1);
+				a.minute = string_to_int(s, 3, 4);
+			}
+			read_txt >> d;
+			a.amount = d;
+
+			a.type = "input";
+			a.address = generate_address(i);
+
+			vec.push_back(a);
+		}
+		in.push_back(vec);
+	}
+}
+
+ // 2. Generate random output transaction data per input transaction
+
+void set_time(transaction input, int delay, transaction &output)
+{
+	int month[12] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+
+	output.minute =( input.minute + delay) % 60;
+	output.hour = (input.hour + (input.minute + delay) / 60) % 24;
+	
+	output.dd = input.dd + (input.hour + (input.minute + delay) / 60) / 24;
+
+	output.mm = input.mm;
+	output.yyyy = input.yyyy;
+}
+
+double rounding(double value, int num)
+{
+	unsigned long long a = value*pow(10, num);
+
+	return a/ pow(10, num);
+}
+void generate_output(vector<transaction> vec, vector<transaction> &out)
+{
+	for (int i = 0; i < vec.size(); i++)
+	{
+		int number_of_withdraw = (rand() % 5) + 1;
+		double balance = rounding((vec[i].amount*0.975),8);
+
+		for (int j = 0; j < number_of_withdraw; j++)
+		{
+			transaction make_out;
+
+			make_out.type = "output";
+
+			//set amount
+			if (j == number_of_withdraw - 1) 
+				make_out.amount = balance;
+			else
+			{
+				make_out.amount = rounding((balance *(rand() % 50 + 1) / 100),8);
+
+				//set balance
+				balance -= make_out.amount;
+			}
+
+			//set date & time
+			set_time(vec[i], rand() % Helix_maximum_delay, make_out);
+			
+			//set address & index
+			make_out.address = generate_address(i);
+
+			out.push_back(make_out);
+		}
+	}
+
+	print_vector(out);
+}
+
+ // 3. Sort
+
+void transaction_copy(transaction &input, transaction output)
+{
+	input.type = output.type;
+	input.date = output.date;
+	input.time = output.time;
+	input.address = output.address;
+	input.amount = output.amount;
+	input.yyyy = output.yyyy;
+	input.mm = output.mm;
+	input.dd = output.dd;
+	input.hour = output.hour;
+	input.minute = output.minute;
+}
+void swap(int i, int j, vector<transaction> &out)
+{
+	transaction temp;
+
+	transaction_copy(temp, out[i]);
+	transaction_copy(out[i], out[j]);
+	transaction_copy(out[j], temp);
+}
+bool compare_transaction(transaction a, transaction b) //true if a> b after time comparison. (a가 크면)
+{
+	if (a.yyyy > b.yyyy) true;
+			else if(a.yyyy == b.yyyy)
+				if(a.mm > b.mm) return true;
+			else if (a.mm == b.mm)
+				if (a.dd > b.dd) return true;
+			else if (a.dd == b.dd)
+				if (a.hour > b.hour) return true;
+			else if (a.hour == b.hour)
+				if (a.minute > b.minute) return true;
+
+	return false;
+}
+void sort_result(vector<transaction> vec, vector<transaction> &out)
+{
+	for (int i = 0; i < vec.size(); i++)
+		out.push_back(vec[i]);
+
+	for (int i = 0; i < out.size(); i++)
+	{
+		int min_index = i;
+
+		for (int j = i+1; j < out.size(); j++)
+		{
+			if (compare_transaction(out[min_index], out[j]))
+				min_index = j;		
+		}
+
+		if (i != min_index)
+			swap(i, min_index, out);
+	}
+}
+
+ // 4. Create output file
+
+void write_fuction(string filename, vector<transaction> vec)
+{
+	ofstream out(filename);
+	if (out.is_open())
+	{
+		for (int i = 0; i < vec.size(); i++)
+		{
+			out << vec[i].type << " " << vec[i].address << " " <<
+				vec[i].yyyy << " " << vec[i].mm << " " << vec[i].dd << " " <<
+				vec[i].hour << " " << vec[i].minute << " " << std::setprecision(10)<< vec[i].amount << endl;
+		}
+	}
+	out.close();
+}
+void write_fuction2(string filename, vector<transaction> vec)
+{
+	ofstream out(filename);
+	if (out.is_open())
+	{
+		for (int i = 0; i < vec.size(); i++)
+		{
+			out << vec[i].type << " " << vec[i].address << " " <<
+				vec[i].yyyy << "-" << vec[i].mm << "-" << vec[i].dd << " " <<
+				vec[i].hour << ":" << vec[i].minute << " " << vec[i].amount << endl;
+		}
+	}
+	out.close();
+}
+
+void write_input_txt(vector<transaction> vec)
+{
+	write_fuction("input.txt", vec);
+	write_fuction2("input_view.txt", vec);
+}
+
+void write_output_txt(vector<transaction> vec)
+{
+	write_fuction("output.txt", vec);
+	write_fuction2("output_view.txt", vec);
+}
+
+void write_result_txt(vector<transaction> vec)
+{
+	write_fuction("result.txt", vec);
+	write_fuction2("result_view.txt", vec);
+}
+
+void write_result_txt(vector<transaction> vec, char num) //generate multiple result
+{
+	string filename = "result_";
+	
+	filename.push_back(num);
+	
+	write_fuction(filename +".txt", vec);
+	//write_fuction2(filename +"_view.txt", vec);
+}
+
+int main()
+{
+	srand(time(NULL));
+
+	clock_t begin = clock();
+	vector<transaction> vec;
+	
+	vector<vector<transaction>> in;
+	int number_of_result = 10; //The number of output files. 
+	int number_of_transaction = 16;  //The number of inputs.
+
+	//read_txt("Chainalysis_Helix_Mixer_input_19.txt",vec);
+	read_txt("Chainalysis_Helix_Mixer_input_June.txt", in, number_of_result, number_of_transaction);
+	for (int i = 0; i < number_of_result; i++)
+	{
+		vector<transaction> out;
+		generate_output(in[i], out);
+		sort_result(in[i], out);
+		write_result_txt(out,i+'0' );
+	}
+
+	
+
+	//write_input_txt(vec);
+	//write_output_txt(out);
+
+	
+	//print_vector(out);
+
+	cout << "time spent : " << (double)(clock() - begin) / CLOCKS_PER_SEC << endl;
+}

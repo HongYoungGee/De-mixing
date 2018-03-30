@@ -311,7 +311,6 @@ void de_mixing(vector<transaction> in, vector<transaction> out)
 int main()
 {
 	clock_t begin = clock();
-	//vector<transaction> in, out;
 	std::setprecision(10);
 	cout.precision(10);
 
@@ -333,12 +332,13 @@ int main()
 
 		cout << "******************************************************" << endl;
 	}
-
+	
+	//vector<transaction> in, out;
 	//read_txt("result_16.txt", in, out); //step 1
 	//de_mixing(in, out); //step 2
 
 	//print_vector(in);
 	//print_vector(out);
-	printf("average time spent : %f\n", (double)(clock() - begin) / CLOCKS_PER_SEC/ number_of_inputfile);
-	//Average time output.
+	
+	printf("average time spent : %f\n", (double)(clock() - begin) / CLOCKS_PER_SEC/ number_of_inputfile); //Average time output.	
 }

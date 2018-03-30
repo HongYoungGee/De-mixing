@@ -340,4 +340,5 @@ int main()
 	//print_vector(in);
 	//print_vector(out);
 	printf("average time spent : %f\n", (double)(clock() - begin) / CLOCKS_PER_SEC/ number_of_inputfile);
+	//Average time output.
 }

@@ -1,6 +1,6 @@
 # De-mixing algorithm
 
-This code is used in the paper ['A Practical De-mixing Algorithm for Bitcoin Mixing Services'](https://dl.acm.org/citation.cfm?id=3205234) submitted to AC AsiaCCS'18 BCC Workshop.
+This code is used in the paper ['A Practical De-mixing Algorithm for Bitcoin Mixing Services'](https://dl.acm.org/citation.cfm?id=3205234) submitted to ACM AsiaCCS'18 BCC Workshop.
 It is a function that matches input and output of mixing service.
 
 

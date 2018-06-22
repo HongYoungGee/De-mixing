@@ -1,6 +1,6 @@
 # De-mixing algorithm
 
-This code is a paper experiment submitted to te ACM AsiaCCS'18 BCC Workshop.
+This code is a paper experiment submitted to te [ACM AsiaCCS'18 BCC Workshop](https://dl.acm.org/citation.cfm?id=3205234).
 It is a function that matches input and output of mixing service.
 
 
